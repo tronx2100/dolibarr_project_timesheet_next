@@ -140,13 +140,16 @@ UNION ALL SELECT 'time_approval.fk_user_app_other', COUNT(*) FROM llx_project_ta
 
 ---
 
-## Dolibarr core bug in 24.0.1 (not part of the module)
+## Dolibarr core bug in 24.0.1 (not part of the module) – fixed in 24.0.2
 
-In 24.0.1 `htdocs/projet/tasks.php` logs the warning
+**Dolibarr 24.0.2 and later: nothing to do.**
+
+Only Dolibarr 24.0.1: `htdocs/projet/tasks.php` logs the warning
 `Undefined array key "search_options_<extrafield>" in extrafields_list_search_sql.tpl.php` on
 every call as soon as tasks have extrafields (the module adds `invoiceable`), and ignores
-filters on extrafields. Fixed upstream in branch 24.0 (commit 95b43b7, PR #40616), shipped with
-24.0.2. Until then: `dolibarr-core-patches/projet-tasks-24.0.1-search-options.patch`
+filters on extrafields. Fixed upstream (commit 95b43b7, PR #40616) and shipped with 24.0.2
+(checked in the 24.0.2 and 24.0.3 sources). Better update Dolibarr; if you have to stay on 24.0.1:
+`dolibarr-core-patches/projet-tasks-24.0.1-search-options.patch`
 (apply with `patch -p1` in the Dolibarr directory that contains `htdocs/`).
 
 ---
