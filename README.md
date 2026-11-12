@@ -1,185 +1,178 @@
-# Timesheet für Dolibarr – Weiterentwicklung (`timesheet_next`)
+# Timesheet for Dolibarr – continued development (`timesheet_next`)
 
-Weiterentwicklung des Dolibarr-Moduls **„Timesheet“** (Zeiterfassung, Stempeluhr, Genehmigung,
-Projektberichte, Abrechnung von Zeiten) von Patrick Delcroix
-([github.com/delcroip](https://github.com/delcroip)), angepasst an **Dolibarr 24** und
-ergänzt um die Erfassung von **Beginn / Ende / Pause** pro Tag, wie sie im Baugewerbe
-(Aufzeichnungspflicht nach § 17 MiLoG) gebraucht wird.
+*Deutsche Fassung: [README.de.md](README.de.md)*
+
+Continuation of the Dolibarr module **"Timesheet"** (time tracking, stopwatch / attendance,
+approval workflow, project reports, invoicing of time spent) by Patrick Delcroix
+([github.com/delcroip](https://github.com/delcroip)), adapted to **Dolibarr 24** and extended
+with **start / end / break per day**, as required for construction workers in Germany
+(recording duty under § 17 MiLoG).
 
 | | |
 |---|---|
-| Modulversion | **4.6.8** (Basis: 4.6.7) |
-| Getestet mit | Dolibarr **24.0.1**, PHP 8.4, MariaDB 11 |
-| Lizenz | GPL v3 oder später (wie das Originalmodul, siehe `LICENSE`) |
+| Module version | **4.6.8** (based on 4.6.7) |
+| Tested with | Dolibarr **24.0.1**, PHP 8.4, MariaDB 11 |
+| License | GPL v3 or later (same as the original module, see `LICENSE`) |
 
-Die Commit-Historie beginnt mit dem Originalstand 4.6.7. Alle Änderungen dieser Version stehen im
-zweiten Commit und lassen sich mit `git diff` nachvollziehen.
+The commit history starts with the original 4.6.7 state. All changes of this version are in the
+second commit and can be reviewed with `git diff`.
 
 ---
 
-## Installation / Update
+## Installation / upgrade
 
-1. Den Inhalt dieses Repositorys nach `htdocs/custom/timesheet/` kopieren, z. B.
+1. Copy the content of this repository to `htdocs/custom/timesheet/`, e.g. run
    `git clone https://github.com/tronx2100/dolibarr_project_timesheet_next.git timesheet`
-   im Verzeichnis `custom/`. **Alle Dateien** übertragen, nicht nur `.php`:
-   JS, CSS, Sprach- und SQL-Dateien gehören dazu.
-2. In Dolibarr unter *Einstellungen → Module* das Modul **deaktivieren und wieder aktivieren**.
-   Erst dabei werden die Menübedingungen neu geschrieben, die neuen Tabellenspalten angelegt
-   und die Fremdschlüssel gesetzt. Daten und Benutzerrechte bleiben erhalten (getestet).
-3. Browser einmal hart neu laden (Strg+F5, am Handy Seite neu laden). Ab 4.6.8 tragen JS und CSS
-   eine Versionsangabe, spätere Updates werden dann automatisch geladen.
+   inside `custom/`. Transfer **all files**, not only `.php`: JS, CSS, language and SQL files
+   are required too.
+2. In Dolibarr go to *Setup → Modules* and **disable and re-enable** the module. This rewrites
+   the menu conditions, creates the new table columns and the foreign keys. Data and user
+   permissions are kept (tested).
+3. Hard-reload the browser once (Ctrl+F5, on phones reload the page). From 4.6.8 on, JS and CSS
+   are loaded with a version parameter, so later updates are picked up automatically.
 
-Optional vor dem Reaktivieren: verwaiste Datensätze prüfen, an denen neue Fremdschlüssel
-scheitern würden (siehe Abschnitt *Datenbank*). Das Aktivieren bricht dabei nie ab, ein
-fehlender Schlüssel wird nur ins Dolibarr-Log geschrieben.
-
----
-
-## Neue Funktion: Beginn / Ende / Pause pro Tag
-
-Für Monteure auf wechselnden Baustellen, die Zeiten (auch nachträglich) mit echter Uhrzeit
-erfassen müssen.
-
-- **Popup im gewohnten Raster** (Wochen-/Monatsansicht `Timesheet.php`). Das Raster selbst
-  bleibt unverändert schmal, horizontal scrollbar mit fixierten Spalten.
-  - **Handy/Tablet:** Tippen auf die Stunden eines Tages öffnet das Popup (große Felder,
-    nativer Uhrzeit-Picker).
-  - **PC:** Stunden weiterhin direkt eintippen; **Doppelklick** auf das Feld öffnet das Popup
-    (Tooltip am Feld). Schließen mit ✕, Esc, Klick daneben oder „Abbrechen“.
-- Felder: **Beginn, Ende, Pause, Dauer (netto)** und Notiz. Dauer = Ende − Beginn − Pause,
-  wird vorgeschlagen und ist korrigierbar. Arbeit über Mitternacht wird erkannt.
-- Prüfung im Browser *und* auf dem Server: Die Dauer darf nicht länger sein als Beginn bis Ende.
-- Unter den Stunden steht klein „07:00–16:00“ (nur wenn erfasst), ✎ markiert Tage mit Notiz.
-  Auch gesperrte und genehmigte Zellen zeigen die Uhrzeiten.
-- Speicherung in zwei neuen Spalten `llx_element_time.timesheet_start` / `timesheet_end`.
-  Alte Einträge mit vom Modul erzeugter Ersatz-Uhrzeit werden so nicht mit echten Zeiten
-  verwechselt. Zusätzlich wird Dolibarrs `element_datehour` auf den echten Beginn gesetzt, sodass
-  die Core-Ansicht *Projekt → Aufgabe → Zeitaufwand* dieselbe Uhrzeit zeigt (auch bei
-  unterschiedlichen Zeitzonen von Server und Gerät getestet).
-- **Export (TSV/CSV/XLSX)** und **PDF-Bericht** haben Spalten *Beginn* und *Ende*.
-- Schalter in den Moduleinstellungen: **„Beginn / Ende erfassen“** (`TIMESHEET_SHOW_STARTEND`,
-  Standard an). Fehlen die DB-Spalten (Modul nicht reaktiviert), läuft alles wie vorher, nur
-  ohne Popup.
+Optional before re-enabling: check for orphaned records that would prevent new foreign keys
+(see *Database* below). Enabling the module never fails because of this; a missing key is only
+written to the Dolibarr log.
 
 ---
 
-## Änderungen in 4.6.8
+## New feature: start / end / break per day
 
-### Dolibarr-24-Kompatibilität
-- **Top-Menü „Timesheet“ war verschwunden:** Dolibarr 24 erlaubt `$conf->global->…` nicht mehr
-  in Menübedingungen (`dol_eval`). Alle Bedingungen auf `getDolGlobalInt()` /
-  `getDolGlobalString()` umgestellt (`core/modules/modtimesheet.class.php`).
-- **Raster blieb leer bei eingeschalteten „Notizen pro Tag“:** `img_picto()` liefert in
-  Dolibarr 24 FontAwesome-Spans statt `<img>`, `closeNotes()` brach dadurch ab. Außerdem war das
-  Symbol `filenew` unsichtbar (existiert nicht). Eigenes Notiz-Symbol, `closeNotes()` robust.
-- `llx_attendance_event` wurde ab Dolibarr 22 **nicht angelegt**: Ein SQL-Kommentar ohne
-  Leerzeichen vor `--` wird vom geänderten `run_sql()` nicht mehr entfernt. Die Stempeluhr
-  meldete dann Erfolg, speicherte aber nichts. Betraf nur Neuinstallationen.
-- Warn- und Fehlermeldungen des Moduls wurden nie angezeigt (`'warning'`/`'error'` statt
-  Dolibarrs `'warnings'`/`'errors'`).
-- Das JavaScript-Init brach ab, wenn kein Favoriten-Reiter existiert (`defaultOpen`).
+For workers on changing construction sites who have to record their time with the real clock
+time, also afterwards (no internet on site).
 
-### Datenintegrität / Abrechnung
-- **Speichern im Raster hat abgerechnete Zeiten entkoppelt:** Seit Dolibarr 20 schreibt der Core
-  beim Update `invoice_id`/`invoice_line_id`/`fk_product` aus dem Objekt zurück. Das Modul hat
-  diese Werte nicht geladen, deshalb verloren alle Einträge einer Zeile ihre
-  Rechnungsverknüpfung, sobald in derselben Zeile ein anderer Tag geändert wurde. Jetzt werden
-  sie vor jedem Update geladen.
-- **Notizen gesperrter Tage wurden beim Speichern geleert.** Nicht mitgeschickte Notizfelder
-  bedeuten jetzt „unverändert“.
-- **Abgerechnete Zeiten sind serverseitig gesperrt** (vorher nur in der Oberfläche). Ändern,
-  Löschen und Uhrzeiten werden abgewiesen, mit Meldung. `TIMESHEET_UNBLOCK_INVOICED` hebt die
-  Sperre weiterhin auf. Bucht die Stempeluhr auf einen bereits abgerechneten Tag, entsteht ein
-  neuer, offener Eintrag.
-- Urlaub/Feiertage gingen beim Laden aus der Session verloren bzw. lösten einen TypeError aus
-  (`Serializable::unserialize()` bekam einen String). Jetzt `__serialize()` / `__unserialize()`,
-  damit ist auch die PHP-8.1-Deprecation weg.
+- **Popup in the existing grid** (week/month view `Timesheet.php`). The grid itself stays as
+  compact as before, horizontally scrollable with fixed columns.
+  - **Phone/tablet:** tapping the hours of a day opens the popup (large fields, native time
+    picker).
+  - **Desktop:** hours can still be typed directly; **double click** on the field opens the popup
+    (tooltip on the field). Close with ✕, Esc, click outside or "Cancel".
+- Fields: **start, end, break, duration (net)** and note. Duration = end − start − break, is
+  proposed and can be corrected. Work over midnight is detected.
+- Check in the browser *and* on the server: the duration must not be longer than start to end.
+- Below the hours a small "07:00–16:00" is shown (only if entered), ✎ marks days with a note.
+  Locked and approved cells show the times as well.
+- Stored in two new columns `llx_element_time.timesheet_start` / `timesheet_end`, so old entries
+  with a generated hour are not mistaken for real times. In addition Dolibarr's
+  `element_datehour` is set to the real start, so the core view *Project → Task → Time spent*
+  shows the same time (tested with different time zones on server and device).
+- **Export (TSV/CSV/XLSX)** and **PDF report** have *start* and *end* columns.
+- Setting in the module setup: **"Record start / end"** (`TIMESHEET_SHOW_STARTEND`, on by
+  default). If the DB columns are missing (module not re-enabled), everything works as before,
+  just without the popup.
 
-### Berichte / Export / PDF
-- Export: Spalte „Abrechenbar“ war immer 0 (SQL-Alias `invoicable` vs. `invoiceable`),
-  Spalte „Kunde“ enthielt HTML-Link-Code statt des Namens.
-- PDF brach ab, wenn kein Firmenlogo hinterlegt ist (`$$pdf`-Tippfehler).
-- PDF und Export mit Beginn/Ende (siehe oben).
+---
 
-### Rechte / Menü
-- Projekt-Tab „Projektbericht“ prüfte das nicht existierende Recht `report->projet`. Jetzt
-  dieselben Rechte wie die Seite selbst: `report->project`, `report->admin` oder
-  „alle Projekte lesen“.
+## Changes in 4.6.8
 
-### Datenbank (Fremdschlüssel)
-- `attendance_event.fk_third_party`: Syntaxfehler und falsche Tabelle (`llx_soc` →
-  `llx_societe`).
-- `time_approval`: Spaltentippfehler `fk_user_app_suplier`, doppelter Schlüsselname
-  (`idac` → `idao`).
-- `fk_userid` in `attendance_event` und `project_task_timesheet`: `ON DELETE SET NULL` auf eine
-  NOT-NULL-Spalte war unmöglich. Jetzt **`ON DELETE RESTRICT`**: Ein Benutzer mit
-  Arbeitszeitnachweisen kann nicht gelöscht, nur deaktiviert werden (Aufbewahrungspflicht).
-- `element_time.fk_task_time_approval`: Der Schlüssel kann wegen unterschiedlicher Typen
-  (BIGINT UNSIGNED vs. INTEGER) nie angelegt werden. Bewusst deaktiviert, statt die Core-Tabelle
-  umzubauen.
+### Dolibarr 24 compatibility
+- **Top menu "Timesheet" was gone:** Dolibarr 24 no longer allows `$conf->global->…` in menu
+  conditions (`dol_eval`). All conditions now use `getDolGlobalInt()` / `getDolGlobalString()`
+  (`core/modules/modtimesheet.class.php`).
+- **Grid stayed empty with "notes per day" enabled:** in Dolibarr 24 `img_picto()` returns
+  FontAwesome spans instead of `<img>`, which made `closeNotes()` crash. The `filenew` icon was
+  also invisible (it does not exist). Own note icon, robust `closeNotes()`.
+- `llx_attendance_event` was **not created** from Dolibarr 22 on: an SQL comment without a space
+  before `--` is no longer stripped by the changed `run_sql()`. The stopwatch then reported
+  success but saved nothing. Only affected new installations.
+- Warning and error messages of the module were never shown (`'warning'`/`'error'` instead of
+  Dolibarr's `'warnings'`/`'errors'`).
+- The JavaScript init crashed when there is no favourites tab (`defaultOpen`).
 
-Prüfabfrage für verwaiste Datensätze vor dem Reaktivieren (alle Ergebnisse 0 = alle Schlüssel
-werden angelegt):
+### Data integrity / invoicing
+- **Saving the grid unlinked invoiced time:** since Dolibarr 20 the core writes
+  `invoice_id`/`invoice_line_id`/`fk_product` back from the object on update. The module did not
+  load these values, so all entries of a row lost their invoice link as soon as another day of
+  the same row was changed. They are now loaded before every update.
+- **Notes of locked days were wiped on save.** Note fields that are not posted now mean
+  "unchanged".
+- **Invoiced time is locked server side** (before: only in the UI). Changes, deletion and times
+  are refused with a message. `TIMESHEET_UNBLOCK_INVOICED` still lifts the lock. If the stopwatch
+  books on an already invoiced day, a new, not invoiced entry is created.
+- Holidays / public holidays were lost when restored from the session or caused a TypeError
+  (`Serializable::unserialize()` received a string). Now `__serialize()` / `__unserialize()`,
+  which also removes the PHP 8.1 deprecation.
+
+### Reports / export / PDF
+- Export: column "Invoiceable" was always 0 (SQL alias `invoicable` vs. `invoiceable`), column
+  "Customer" contained HTML link code instead of the name.
+- PDF crashed when no company logo is set (`$$pdf` typo).
+- PDF and export with start/end (see above).
+
+### Permissions / menu
+- Project tab "Project report" checked the non-existing right `report->projet`. It now uses the
+  same rights as the page itself: `report->project`, `report->admin` or "read all projects".
+
+### Database (foreign keys)
+- `attendance_event.fk_third_party`: syntax error and wrong table (`llx_soc` → `llx_societe`).
+- `time_approval`: column typo `fk_user_app_suplier`, duplicate key name (`idac` → `idao`).
+- `fk_userid` in `attendance_event` and `project_task_timesheet`: `ON DELETE SET NULL` on a
+  NOT NULL column was impossible. Now **`ON DELETE RESTRICT`**: a user with working time records
+  cannot be deleted, only disabled (retention duty).
+- `element_time.fk_task_time_approval`: the key can never be created because of different types
+  (BIGINT UNSIGNED vs. INTEGER). Deliberately disabled instead of altering the core table.
+
+Check for orphaned records before re-enabling (all results 0 = all keys will be created):
 
 ```sql
-SELECT 'attendance_event.fk_userid' AS pruefung, COUNT(*) AS verwaist FROM llx_attendance_event a LEFT JOIN llx_user u ON u.rowid=a.fk_userid WHERE u.rowid IS NULL
+SELECT 'attendance_event.fk_userid' AS check_name, COUNT(*) AS orphans FROM llx_attendance_event a LEFT JOIN llx_user u ON u.rowid=a.fk_userid WHERE u.rowid IS NULL
 UNION ALL SELECT 'attendance_event.fk_third_party', COUNT(*) FROM llx_attendance_event a LEFT JOIN llx_societe s ON s.rowid=a.fk_third_party WHERE a.fk_third_party IS NOT NULL AND s.rowid IS NULL
 UNION ALL SELECT 'project_task_timesheet.fk_userid', COUNT(*) FROM llx_project_task_timesheet t LEFT JOIN llx_user u ON u.rowid=t.fk_userid WHERE u.rowid IS NULL
 UNION ALL SELECT 'time_approval.fk_user_app_supplier', COUNT(*) FROM llx_project_task_time_approval p LEFT JOIN llx_user u ON u.rowid=p.fk_user_app_supplier WHERE p.fk_user_app_supplier IS NOT NULL AND u.rowid IS NULL
 UNION ALL SELECT 'time_approval.fk_user_app_other', COUNT(*) FROM llx_project_task_time_approval p LEFT JOIN llx_user u ON u.rowid=p.fk_user_app_other WHERE p.fk_user_app_other IS NOT NULL AND u.rowid IS NULL;
 ```
 
-### Oberfläche
-- Am PC wurde die ganze Seite so breit wie das Monatsraster (~2100 px), die Speichern-Buttons
-  rutschten rechts aus dem Bild. Raster-Rahmen mit `contain: inline-size` (scrollt jetzt in sich,
-  fixierte Spalten bleiben stehen), Feld „Anmerkungen“ 100 % statt `97vw`.
-- Esc und Klick daneben schließen jetzt auch die Notiz-Popups.
-- JS/CSS werden mit Versionsangabe geladen (`timesheet.js?<Dateizeit>`,
-  `timesheet.css?v=<Modulversion>`). Vorher blieben nach einem Update alte Dateien im
-  Browser-Cache.
+### User interface
+- On desktop the whole page became as wide as the month grid (~2100 px) and the save buttons
+  slid off screen to the right. The grid box now uses `contain: inline-size` (it scrolls inside
+  its box, fixed columns stay in place), the "Notes" field is 100 % wide instead of `97vw`.
+- Esc and click outside now also close the note popups.
+- JS/CSS are loaded with a version (`timesheet.js?<file time>`,
+  `timesheet.css?v=<module version>`). Before, old files stayed in the browser cache after an
+  update.
 
-### Kleinere Korrekturen
-- PHP-8.2-Deprecations `${var}` in Strings.
-- Warnungen: `Undefined array key` in `ajax.php` und `TimesheetReportProject.php`,
+### Minor fixes
+- PHP 8.2 deprecations `${var}` in strings.
+- Warnings: `Undefined array key` in `ajax.php` and `TimesheetReportProject.php`,
   `GETPOST(…, 'apha')` → `'alpha'`.
-- Übersetzungen für alle neuen Texte in de_DE, en_US, fr_FR, es_ES, it_IT.
+- Translations for all new texts in de_DE, en_US, fr_FR, es_ES, it_IT.
 
 ---
 
-## Dolibarr-Core-Bug in 24.0.1 (nicht Teil des Moduls)
+## Dolibarr core bug in 24.0.1 (not part of the module)
 
-`htdocs/projet/tasks.php` erzeugt in 24.0.1 bei jedem Aufruf die Warnung
-`Undefined array key "search_options_<extrafield>" in extrafields_list_search_sql.tpl.php`,
-sobald Aufgaben Extrafields haben (das Modul legt `invoiceable` an), und ignoriert Filter auf
-Extrafields. Upstream behoben im Branch 24.0 (Commit 95b43b7, PR #40616), kommt mit 24.0.2.
-Bis dahin: `dolibarr-core-patches/projet-tasks-24.0.1-search-options.patch`
-(im Dolibarr-Verzeichnis `htdocs/..` mit `patch -p1` anwenden).
+In 24.0.1 `htdocs/projet/tasks.php` logs the warning
+`Undefined array key "search_options_<extrafield>" in extrafields_list_search_sql.tpl.php` on
+every call as soon as tasks have extrafields (the module adds `invoiceable`), and ignores
+filters on extrafields. Fixed upstream in branch 24.0 (commit 95b43b7, PR #40616), shipped with
+24.0.2. Until then: `dolibarr-core-patches/projet-tasks-24.0.1-search-options.patch`
+(apply with `patch -p1` in the Dolibarr directory that contains `htdocs/`).
 
 ---
 
-## Bekannte Punkte / offen
+## Known issues / open points
 
-- **Aufgaben ohne Eingabefelder:** Beschreibbar ist eine Zeile nur, wenn der Benutzer in der
-  *Aufgabe* als Mitwirkender eingetragen ist. Aufgaben aus öffentlichen Projekten oder mit früher
-  gebuchter Zeit werden nur angezeigt; ihre leeren, schreibgeschützten Zellen sind unsichtbar.
-  Idee: schreibgeschützte Tage als graue Kästchen darstellen.
-- **Urlaubstage** sind nur in der Oberfläche gesperrt, nicht serverseitig (war schon so).
-- **Eingereichte Stundenzettel** sind serverseitig nicht gesperrt, nur „genehmigt“.
-- **Stempeluhr:** Das JSON vom Browser wird von Dolibarr (`GETPOST` ohne Filter entfernt
-  Anführungszeichen) zerstört, die Uhr arbeitet über den Rückfall „letztes Event des
-  Benutzers“. Beginn/Ende der Stempeluhr landen (noch) nicht in den neuen Spalten.
-- **Kein Änderungsprotokoll** für Stempel- und Zeiteinträge (alte Werte werden überschrieben).
-- Stundenzettel-Einträge löschen sich nur, wenn Dauer **und** Notiz leer sind.
-- Im eigenen CSS sind Reiter und Suche am Handy im Hochformat ausgeblendet. Ist „Favoriten“ der
-  Standard-Reiter, sehen Monteure am Handy nur Favoriten.
-- Toter Code: `GetTimeSheetXML` / `timesheetAjax.js`, `$htmlName` in
+- **Tasks without input fields:** a row can only be edited if the user is a contributor of the
+  *task*. Tasks of public projects or with time booked earlier are only displayed; their empty
+  read-only cells are invisible. Idea: show read-only days as grey boxes.
+- **Holidays** are only locked in the UI, not on the server (already like that before).
+- **Submitted timesheets** are not locked on the server, only "approved" ones.
+- **Stopwatch:** the JSON sent by the browser is destroyed by Dolibarr (`GETPOST` without filter
+  strips quotes), the stopwatch works through the fallback "last event of the user". Start/end
+  of the stopwatch are not (yet) written to the new columns.
+- **No change log / audit trail** for stopwatch and time entries (old values are overwritten).
+- Timesheet entries are only deleted when duration **and** note are empty.
+- The local CSS hides tabs and search on phones in portrait mode. If "Favourites" is the default
+  tab, workers on phones only see their favourites.
+- Dead code: `GetTimeSheetXML` / `timesheetAjax.js`, `$htmlName` in
   `core/ajaxGenericSelectHandler.php`.
 
 ---
 
-## Hinweis zur Arbeitszeiterfassung
+## Note on working time recording
 
-Das Modul speichert Zeiten dauerhaft und löscht nichts automatisch. Aufbewahrungsfristen (z. B.
-mindestens 2 Jahre nach § 16 Abs. 2 ArbZG / § 17 MiLoG, länger bei lohn- oder
-abrechnungsrelevanten Unterlagen) und die Löschung nach Fristablauf (DSGVO) liegen beim Betreiber.
-Keine Rechtsberatung.
+The module stores time permanently and deletes nothing automatically. Retention periods (e.g.
+at least 2 years under German § 16 (2) ArbZG / § 17 MiLoG, longer for payroll or invoicing
+relevant records) and deletion after expiry (GDPR) are the operator's responsibility. Not legal
+advice.
