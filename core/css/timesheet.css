@@ -1,0 +1,241 @@
+/*
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+*/
+/*
+    Created on : 19-mars-2016, 17:21:01
+    Author     : delcroip
+*/
+
+ul.listHoliday{
+    list-style-type: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+li.listItemHoliday{
+    float: left;
+    width: 50%;
+    background-color: transparent;
+}
+
+a.holiday{
+    display:block;
+    padding: 0;
+    margin: 0;
+}
+
+a.noPrevHoliday{
+    margin-left: 5%;
+    /*border-left: thick double #000000;*/
+}
+a.noNextHoliday{
+    margin-right: 10%;
+    /*border-left: thick double #000000;*/
+}
+
+tr.dblist:hover{
+    	font-weight: bold;
+}
+
+input[type="checkbox"][readonly] {
+  pointer-events: none;
+}
+
+/* The Modal (background)  https://www.w3schools.com/howto/howto_css_modals.asp */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0,0,0); /* Fallback color */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+/* Modal Content/Box */
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto; /* 15% from the top and centered */
+    padding: 5px;
+    border: 1px solid #888;
+    width: 400px; /* Could be more or less, depending on screen size */
+}
+
+/* The Close Button */
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+
+
+
+
+
+
+/* this file is direct linked */
+
+/*timeshett start */
+@media only screen and (max-width: 767px) and (orientation: portrait) {
+#chronoTable tr td {
+ max-width:170px;
+}
+
+#offeventNote {
+ display:none;
+}
+#offmainPlayStop  {
+padding-top: 30px;
+padding-left: 50px;
+}
+
+#mainPlayStop  {
+margin-top: 15px;
+}
+
+#eventNote {
+margin-top:5px;
+margin-left:10px;
+height:20vw !important;
+  font-size: 16px; /* Hier kannst du die gewünschte Schriftgröße angeben */
+  -webkit-text-size-adjust: none; /* Hinzufügen des Attributs für Safari */
+}
+
+div.tabsElem a.tab {
+display:none;
+}
+
+#searchline {
+display:none;
+}
+
+#chronoTable th {
+  display: none;
+}
+
+}
+@media only screen and (max-width: 767px) and (orientation: landscape) {
+#eventNote {
+    width: 60%;
+    height: 100%;
+    left: 40px;
+    position: relative;
+}
+
+}
+
+
+
+[name^="noteTaskApproval"] {
+width:97vw ;
+max-width:99% ;
+min-height:100px;
+
+  /* Ihre CSS-Regeln hier */
+}
+
+table[id^="timesheetTable_"] tr:last-child {
+  position: sticky;
+  bottom: 0;
+}
+
+#timesheetForm > div.tsheetcontainer {
+  position: relative;
+  overflow-x: auto;
+}
+
+table[id^="timesheetTable_"] {
+  table-layout: fixed;
+  width: auto;
+}
+
+table[id^="timesheetTable_"] tr:not([id="publicholiday"]) td:nth-child(1),
+table[id^="timesheetTable_"] tr:not([id="publicholiday"]) th:nth-child(1),
+table[id^="timesheetTable_"] tr:not([id="publicholiday"]) td:nth-child(2),
+table[id^="timesheetTable_"] tr:not([id="publicholiday"]) th:nth-child(2) {
+  position: sticky;
+  left: 0;
+ /*  z-index: 2; */
+  background-color: #aaa;
+  line-height:normal ;
+}
+
+
+@media (max-width: 767px) {
+table[id^="timesheetTable_"] tr:nth-child(-n+2) td:nth-child(1),
+table[id^="timesheetTable_"] tr:nth-child(-n+2) th:nth-child(1) {
+    text-align: left;
+    background-color: #888;
+}
+
+table[id^="timesheetTable_"] tr:nth-child(-n+2) td:nth-child(1) a {
+      position: sticky !important;
+    left: 10px;
+    z-index: 2;
+}
+}
+
+table[id^="timesheetTable_"] tr td div input {
+ border : 1px solid black;
+ min-width: 38px;
+}
+
+
+[class^="TotalColumn_"] {
+  text-align: center;
+}
+
+[id^="userTask_"] > td {
+    padding: 0 !important;
+    height: unset !important;
+}
+
+
+table[id^="timesheetTable_"]  > tbody > tr.lineDynTotal > td > div,
+[id^="userTask_"] > td >div {
+text-align:center;
+}
+
+
+
+.xnoborder:not(.editmode) > tbody > tr:nth-child(even):not(.liste_titre), .liste > tbody > tr:nth-child(even):not(.liste_titre), div:not(.fichecenter):not(.fichehalfleft):not(.fichehalfright) > .border > tbody > tr:nth-of-type(even):not(.liste_titre), .liste > tbody > tr:nth-of-type(even):not(.liste_titre), div:not(.fichecenter):not(.fichehalfleft):not(.fichehalfright) .oddeven.tagtr:nth-of-type(even):not(.liste_titre) {
+    background: linear-gradient(bottom, var(----colorbacklineimpair2) 0%, var(--colorbacklineimpair2) 100%);
+    background: -o-linear-gradient(bottom, var(--colorbacklineimpair2) 0%, var(--colorbacklineimpair2) 100%);
+    background: -moz-linear-gradient(bottom, var(--colorbacklineimpair2) 0%, var(--colorbacklineimpair2) 100%);
+    background: -webkit-linear-gradient(bottom, var(--colorbacklineimpair2) 0%, var(--colorbacklineimpair2) 100%);
+    background-color: var(--colorbacklineimpair2)  !important;
+}
+
+#timesheetForm > div.noborder > div.tabsAction {
+display:flex;
+    justify-content: flex-end;
+}
+
+#timesheetForm > div.noborder > div.tabsAction > input,
+#timesheetForm > div.noborder > div.tabsAction > a,
+#timesheetForm > div.tabsAction a {
+margin-bottom:0px !important;
+padding:7px !important;
+margin-right: 10px !important;
+}
+
+
+/* timesheet end */
+
+
+
