@@ -249,9 +249,11 @@ class TimesheetReport
                 $sql .= " MAX(ptt.rowid) as id, STRING_AGG(ptt.note, '. ') as note, MAX(tske.invoiceable) as invoicable, ";
             }
             $sql .= ' DATE(ptt.element_datehour) AS element_date, SUM(ptt.element_duration) as duration ';
+            if (timesheetUseStartEnd($this->db)) $sql .= ', MIN(ptt.timesheet_start) AS ts_start, MAX(ptt.timesheet_end) AS ts_end ';
         }else{
             $sql .= " ptt.rowid as id, ptt.note  as note, tske.invoiceable as invoicable, ";
             $sql .= ' DATE(ptt.element_datehour) AS element_date, ptt.element_duration as duration ';
+            if (timesheetUseStartEnd($this->db)) $sql .= ', ptt.timesheet_start AS ts_start, ptt.timesheet_end AS ts_end ';
         } 
         $sql .= ' FROM '.MAIN_DB_PREFIX.'element_time as ptt ';
         $sql .= ' JOIN '.MAIN_DB_PREFIX."projet_task as tsk ON tsk.rowid = fk_element and elementtype = 'task'  ";
@@ -340,15 +342,17 @@ class TimesheetReport
                     'duration' => $obj->duration,
                     'durationHours' => formatTime($obj->duration, 0),
                     'durationDays' => formatTime($obj->duration, -3),
+                    'timeStart' => !empty($obj->ts_start) ? dol_print_date($this->db->jdate($obj->ts_start), '%H:%M') : '',
+                    'timeEnd' => !empty($obj->ts_end) ? dol_print_date($this->db->jdate($obj->ts_end), '%H:%M') : '',
                     'userId' => $obj->userid,
                     'userName' => trim($objusr->firstname).' '.trim($objusr->lastname),
                     'firstName' => trim($objusr->firstname),
                     'lastName' => trim($objusr->lastname),
                     'userLink' => $objusr->getNomUrl(0),
                     'note' =>($obj->note),
-                    'invoiceable' => (isset($obj->invoiceable) && $obj->invoiceable==1)?'1':'0',
+                    'invoiceable' => (isset($obj->invoicable) && $obj->invoicable==1)?'1':'0', // SQL alias is "invoicable"
                     'invoiced' => ($obj->invoiced==1)?'1':'0',
-                    'socname' => $objpjt->socid>0?($objsoc->code_client != ''? $objsoc->code_client.' - ':'').$objsoc->getNomUrl():''  
+                    'socname' => $objpjt->socid>0?($objsoc->code_client != ''? $objsoc->code_client.' - ':'').$objsoc->name:''  // plain text: used for CSV/XLSX export
                     );
                 $i++;
             }
@@ -781,18 +785,18 @@ $lvl0HTML .= $this->getLvl0HTML(
         $objmodel = new $classname($this->db);
         $arrayTitle = array('projectRef' => 'projectRef', 'projectTitle' => 'projectTitle', 
             'taskRef' => 'taskRef', 'tasktitle' => 'taskTitle', 'dateDisplay' => 'Date', 
-            'durationHours' => 'Hours', 'durationDays' => 'Days', 'userId' => 'userId', 
+            'timeStart' => 'TimesheetStart', 'timeEnd' => 'TimesheetEnd', 'durationHours' => 'Hours', 'durationDays' => 'Days', 'userId' => 'userId', 
             'firstName' => 'Firstname', 'lastName' => 'Lastname', 'note' => 'Note', 
             'invoiceable' => 'Invoiceable','invoiced' => 'Invoiced', 'socname' => 'ThirdParty' );
         $arrayTypes = array('projectRef' => 'TextAuto', 'projectTitle' => 'TextAuto', 
             'taskRef' => 'TextAuto', 'tasktitle' => 'TextAuto', 'dateDisplay' => 'Date', 
-            'durationHours' => 'TextAuto', 'durationDays' => 'Numeric', 'userId' => 'Numeric', 
+            'timeStart' => 'TextAuto', 'timeEnd' => 'TextAuto', 'durationHours' => 'TextAuto', 'durationDays' => 'Numeric', 'userId' => 'Numeric', 
             'firstName' => 'TextAuto', 'lastName' => 'TextAuto', 'note' => 'TextAuto', 
             'invoiceable' => 'Numeric','invoiced' => 'TextAuto', 'socname' => 'TextAuto');
         $arraySelected = array('projectRef' => 'projectRef', 'projectTitle' => 'projectTitle', 
             'taskRef' => 'taskRef', 'tasktitle' => 'tasktitle', 'userId' => 'userId', 
             'firstName' => 'firstName', 'lastName' => 'lastName', 'dateDisplay' => 'date', 
-            'durationHours' => 'durationHours', 'durationDays' => 'durationDays', 'note' => 'note', 
+            'timeStart' => 'timeStart', 'timeEnd' => 'timeEnd', 'durationHours' => 'durationHours', 'durationDays' => 'durationDays', 'note' => 'note', 
             'invoiceable' => 'invoiceable','invoiced' => 'invoiced', 'socname' => 'socname');
 
         $resArray = $this->getReportArray(!($this->ungroup ==1));

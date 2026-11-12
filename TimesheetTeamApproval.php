@@ -180,7 +180,7 @@ exit();
 $TTU = new TimesheetUserTasks($db);
 $head = ($print)?'<style type = "text/css" >@page { size: A4 landscape;marks:none;margin: 1cm ;}</style>':'';
 $morejs = array("/timesheet/core/js/jsparameters.php", "/timesheet/core/js/timesheet.js?"
-    .getConf('TIMESHEET_VERSION'));
+    .timesheetAssetVersion());
 llxHeader($head, $langs->trans('Timesheet'), '', '', '', '', $morejs);
 //calculate the week days
 showTimesheetApTabs(TEAM);

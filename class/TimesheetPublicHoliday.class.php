@@ -53,10 +53,31 @@ class TimesheetPublicHolidays extends CommonObject implements   Serializable
     }
 
     public function unserialize($data) {
-            $this->holidaylist=unserialize($data['holidaylist']);
-            $this->holidayPresent = $data['holidayPresent'];
-            $this->userCountryId = $data['userCountryId'];
+            // Serializable::unserialize() receives the string produced by serialize(), not an array
+            $arr = is_string($data) ? unserialize($data) : $data;
+            if (is_array($arr)) {
+                $this->__unserialize(array(
+                    'holidaylist' => isset($arr['holidaylist']) ? unserialize($arr['holidaylist']) : array(),
+                    'holidayPresent' => isset($arr['holidayPresent']) ? $arr['holidayPresent'] : false,
+                    'userCountryId' => isset($arr['userCountryId']) ? $arr['userCountryId'] : 0,
+                ));
+            }
             return $this;
+    }
+
+    // PHP >= 7.4: used instead of Serializable (avoids PHP 8.1+ deprecation)
+    public function __serialize(): array {
+        return array(
+            'holidaylist' => $this->holidaylist,
+            'holidayPresent' => $this->holidayPresent,
+            'userCountryId' => $this->userCountryId
+        );
+    }
+
+    public function __unserialize(array $data): void {
+        $this->holidaylist = isset($data['holidaylist']) ? $data['holidaylist'] : array();
+        $this->holidayPresent = isset($data['holidayPresent']) ? $data['holidayPresent'] : false;
+        $this->userCountryId = isset($data['userCountryId']) ? $data['userCountryId'] : 0;
     }
 
 
@@ -223,7 +244,7 @@ class TimesheetPublicHolidays extends CommonObject implements   Serializable
             $value = ($timetype == "hours")?date('H:i',
                 mktime(0, 0, $holiday['dayoff']*$dayshours*3600)):$holiday['dayoff'];
             $html .= '<th style = "margin: 0;padding: 0;">';
-            $class = "column_${tsUserId}_${day} user_${userId} line_${tsUserId}_publicholiday";
+            $class = "column_{$tsUserId}_{$day} user_{$userId} line_{$tsUserId}_publicholiday";
             if (getConf('TIMESHEET_ADD_PUBLICHOLIDAY_TIME') == 1){
                 $html .= '<input type = "hidden" class = "'.$class.'"  value = "'.$value.'">';
             }

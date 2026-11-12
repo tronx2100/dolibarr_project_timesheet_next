@@ -151,7 +151,7 @@ class TimesheetHoliday extends Holiday implements 	Serializable
             $value = ($timetype == "hours")?date('H:i',
                 mktime(0, 0, ($amValue+$pmValue)*$dayshours*1800)):($amValue+$pmValue)/2;
             $html .= '<th style = "margin: 0;padding: 0;">';
-            $class = "column_${tsUserId}_${day} user_${userId} line_${tsUserId}_holiday";
+            $class = "column_{$tsUserId}_{$day} user_{$userId} line_{$tsUserId}_holiday";
             if (getConf('TIMESHEET_ADD_HOLIDAY_TIME') == 1){
                 $html .= '<input type = "hidden" class = "'.$class.'"  value = "'.$value.'">';
             }
@@ -192,14 +192,29 @@ class TimesheetHoliday extends Holiday implements 	Serializable
     }
 
 	public function unserialize($data) {
-            if (isset($data['holidaylist'])) {
-                $this->holidaylist = unserialize($data['holidaylist']);
-            }
-            if (isset($data['holidaylist'])) {
-                $this->holidayPresent = $data['holidaylist'];
+            // Serializable::unserialize() receives the string produced by serialize(), not an array
+            $arr = is_string($data) ? unserialize($data) : $data;
+            if (is_array($arr)) {
+                $this->__unserialize(array(
+                    'holidaylist' => isset($arr['holidaylist']) ? unserialize($arr['holidaylist']) : array(),
+                    'holidayPresent' => isset($arr['holidayPresent']) ? $arr['holidayPresent'] : false,
+                ));
             }
 		return $this;
 }
+
+    // PHP >= 7.4: used instead of Serializable (avoids PHP 8.1+ deprecation)
+    public function __serialize(): array {
+        return array(
+            'holidaylist' => $this->holidaylist,
+            'holidayPresent' => $this->holidayPresent
+        );
+    }
+
+    public function __unserialize(array $data): void {
+        $this->holidaylist = isset($data['holidaylist']) ? $data['holidaylist'] : array();
+        $this->holidayPresent = isset($data['holidayPresent']) ? $data['holidayPresent'] : false;
+    }
 
 
 }

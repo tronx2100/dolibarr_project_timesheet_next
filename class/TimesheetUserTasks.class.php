@@ -461,7 +461,7 @@ class TimesheetUserTasks extends CommonObject
        $this->note = $_SESSION['timesheet'][$token][$id]['note'];
        $this->holidays = unserialize($_SESSION['timesheet'][$token][$id]['holiday']);
        
-       if(!empty($_SESSION['timesheet'][$token][$id]['publicHolidays']) && is_array($_SESSION['timesheet'][$token][$id]['publicHolidays']) ){
+       if(!empty($_SESSION['timesheet'][$token][$id]['publicHolidays']) && is_string($_SESSION['timesheet'][$token][$id]['publicHolidays']) ){ // saveInSession() stores a serialize() string
              $this->publicHolidays = unserialize($_SESSION['timesheet'][$token][$id]['publicHolidays']);
        }
        

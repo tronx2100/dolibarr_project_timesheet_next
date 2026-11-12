@@ -1,0 +1,27 @@
+--- a/htdocs/projet/tasks.php
++++ b/htdocs/projet/tasks.php
+@@ -132,7 +132,7 @@
+ 	$object->fetch_optionals();
+ }
+ $extrafields->fetch_name_optionals_label($taskstatic->table_element);
+-$search_array_options = $extrafields->getOptionalsFromPost($taskstatic->table_element, '', 'search_');
++$search_array_options = $extrafields->getOptionalsFromPost($taskstatic->table_element, '', 'search_task_');
+ 
+ // Default to no permission
+ $permissiontoread = 0;
+@@ -632,6 +632,7 @@
+ 		$param .= '&optioncss='.urlencode($optioncss);
+ 	}
+ 	// Add $param from extra fields
++	$search_options_pattern = 'search_task_options_';
+ 	include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_search_param.tpl.php';
+ 
+ 	$arrayofmassactions = array();
+@@ -1146,6 +1147,7 @@
+ 		print '</td>';
+ 	}
+ 
++	$search_options_pattern = 'search_task_options_';
+ 	include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_search_input.tpl.php';
+ 
+ 	// Fields from hook

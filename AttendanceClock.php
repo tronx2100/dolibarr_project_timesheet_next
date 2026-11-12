@@ -128,7 +128,7 @@ $_SESSION['timesheet'][$token] = array();
 * Put here all code to build page
 ****************************************************/
 $morejs = array("/timesheet/core/js/stopWatch.js?".getConf('TIMESHEET_VERSION'),
-    "/timesheet/core/js/timesheet.js?".getConf('TIMESHEET_VERSION'));
+    "/timesheet/core/js/timesheet.js?".timesheetAssetVersion());
 $morecss = array("/timesheet/core/css/stopWatch.css");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Pragma: no-cache");

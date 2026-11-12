@@ -562,6 +562,10 @@ class TimesheetTask extends Task
         $dayelapsed = getDayInterval($timeStart, $timeEnd);
         if ($dayelapsed<1)return -1;
         $sql = "SELECT ptt.rowid, ptt.element_duration, DATE(ptt.element_datehour) AS element_date, ptt.note";
+        $useStartEnd = timesheetUseStartEnd($this->db);
+        if ($useStartEnd) {
+            $sql .= ', ptt.timesheet_start, ptt.timesheet_end';
+        }
          if (version_compare(DOL_VERSION, "4.9.9") >= 0) {
             $sql .= ', (ptt.invoice_id > 0 or ptt.invoice_line_id>0)  AS invoiced';
         }else{
@@ -615,7 +619,9 @@ class TimesheetTask extends Task
 
                 $this->tasklist[$day] = array('id'=>$obj->rowid, 'date'=>$dateCur,
                     'duration'=> $obj->element_duration, 'note'=>$obj->note,
-                'invoiced' => $obj->invoiced);
+                'invoiced' => $obj->invoiced,
+                'start' => ($useStartEnd && !empty($obj->timesheet_start)) ? $this->db->jdate($obj->timesheet_start) : null,
+                'end' => ($useStartEnd && !empty($obj->timesheet_end)) ? $this->db->jdate($obj->timesheet_end) : null);
                 if (is_array($other[$day]) > 0)
                     $this->tasklist[$day]['other'] = $other[$day];
  //               $this->tasklistAll[] =  array('day' => $day, 'id'=>$obj->rowid, 'date'=>$dateCur, 'duration'=>$obj->element_duration, 'note'=>$obj->note, 'invoiced' => $obj->invoiced);
@@ -732,6 +738,7 @@ class TimesheetTask extends Task
         $default_timezone = (empty($_SESSION["dol_tz_string"])?
             @date_default_timezone_get():$_SESSION["dol_tz_string"]);
         $timezoneoffset = get_timezone_offset($default_timezone, 'UTC');
+        $useStartEnd = timesheetUseStartEnd($this->db);
         for($dayCur = 0;$dayCur<$dayelapsed;$dayCur++)
         {
 
@@ -790,10 +797,14 @@ class TimesheetTask extends Task
                 $html .= "<td>\n";
                 // add note popup
                 if ($isOpen && getConf('TIMESHEET_SHOW_TIMESPENT_NOTE')) {
-                    $html .= img_picto('Note', empty($this->tasklist[$dayCur]['note'])?'filenew':'file', '  id="img_note_'
+                    // Dolibarr 24: img_picto() renders FontAwesome spans and 'filenew' does not exist -> own icon
+                    // With start/end enabled the note is edited in the start/end popup: no extra icon per cell
+                    if (!$useStartEnd)
+                    $html .= '<span class="'.(empty($this->tasklist[$dayCur]['note']) ? 'far' : 'fas').' fa-sticky-note ts-note-icon" title="'
+                        .dol_escape_htmltag($langs->trans('Note')).'" id="img_note_'
                         .$this->userId.'_'.$this->id.'_'.$dayCur.
-                        '" style = "display:inline-block;float:right;" onClick = "openNote(\'note_'
-                        .$this->userId.'_'.$this->id.'_'.$dayCur.'\')"');
+                        '" style = "display:inline-block;float:right;cursor:pointer;" onClick = "openNote(\'note_'
+                        .$this->userId.'_'.$this->id.'_'.$dayCur.'\')"></span>';
                 //note code
                 $html .= '<div class = "modal" id = "note_'.$this->userId.'_'.$this->id.'_'.$dayCur.'" >';
                 $html .= '<div class = "modal-content">';
@@ -813,7 +824,13 @@ class TimesheetTask extends Task
                 $html .= ' value = "'.((($hidezeros == 1) && ($dayWorkLoadSec == 0))?"":$dayWorkLoad);
                 $html .= '" maxlength = "5" size = "2" style = "'.$bkcolor.'" ';
                 $html .= 'onkeypress = "return regexEvent(this,event,\'timeChar\')" ';
+                if ($useStartEnd && $isOpen) {
+                    $html .= ' title = "'.dol_escape_htmltag($langs->trans('TimesheetStartEndHint')).'" ';
+                }
                 $html .= 'onblur = "validateTime(this, \''.$this->userId.'_'.$dayCur.'\')" /></div>';
+                if ($useStartEnd) {
+                    $html .= $this->getHTMLStartEndCell($dayCur, $today, $isOpen);
+                }
                  //end note code
                  if ( $otherSec > 0){
                     $html .= '<br><a class = "column_'.$this->userId.'_'.$dayCur.' user_'
@@ -839,11 +856,66 @@ class TimesheetTask extends Task
                 $html .= ' style = "width: 90%;"';
                 $html .= ' >'.((($hidezeros == 1) && ($dayWorkLoadAllSec == 0))?"":$dayWorkLoadAll);
                 $html .= '</a> ';
+                if ($useStartEnd) {
+                    $html .= $this->getHTMLStartEndLabel($dayCur);
+                }
                 $html .= "</td>\n";
             }
         }
         return $html;
     }
+    /**
+     * Small "07:00–15:30" label for a day (read-only cells)
+     *
+     * @param int $dayCur day index
+     * @return string HTML
+     */
+    public function getHTMLStartEndLabel($dayCur)
+    {
+        $start = isset($this->tasklist[$dayCur]['start']) ? $this->tasklist[$dayCur]['start'] : null;
+        $end = isset($this->tasklist[$dayCur]['end']) ? $this->tasklist[$dayCur]['end'] : null;
+        if (empty($start) && empty($end)) {
+            return '';
+        }
+        return '<div class="ts-se-label">'.($start ? dol_print_date($start, '%H:%M') : '?')
+            .'&ndash;'.($end ? dol_print_date($end, '%H:%M') : '?').'</div>';
+    }
+
+    /**
+     * Hidden start/end fields of a day + label and button to open the start/end popup
+     * Field names: task[user][task][day][2] = start "HH:MM", [3] = end "HH:MM"
+     * (display:none text inputs, not type=hidden, so that removeUnchanged() can detect changes)
+     *
+     * @param int  $dayCur day index
+     * @param int  $today  timestamp of the day
+     * @param bool $isOpen day can be edited
+     * @return string HTML
+     */
+    public function getHTMLStartEndCell($dayCur, $today, $isOpen)
+    {
+        global $langs;
+        $start = isset($this->tasklist[$dayCur]['start']) ? $this->tasklist[$dayCur]['start'] : null;
+        $end = isset($this->tasklist[$dayCur]['end']) ? $this->tasklist[$dayCur]['end'] : null;
+        $startStr = $start ? dol_print_date($start, '%H:%M') : '';
+        $endStr = $end ? dol_print_date($end, '%H:%M') : '';
+        $key = $this->userId.'_'.$this->id.'_'.$dayCur;
+        $name = 'task['.$this->userId.']['.$this->id.']['.$dayCur.']';
+        $title = dol_escape_htmltag($this->ProjectTitle.' - '.$this->description.' - '.dol_print_date($today + SECINDAY / 2, 'daytext'));
+        $html = '<div class="ts-se" id="tsse_'.$key.'" data-key="'.$key.'" data-col="'.$this->userId.'_'.$dayCur.'"'
+            .' data-title="'.$title.'" data-open="'.($isOpen ? 1 : 0).'">';
+        $html .= '<input type="text" style="display:none" class="ts-start" name="'.$name.'[2]" value="'.$startStr.'"'.($isOpen ? '' : ' readonly').'>';
+        $html .= '<input type="text" style="display:none" class="ts-end" name="'.$name.'[3]" value="'.$endStr.'"'.($isOpen ? '' : ' readonly').'>';
+        // only a small "07:00–16:00" text when times are set (no icon per cell); the popup opens by
+        // double click (desktop) / tap (phone) on the hours field, see timesheet.js
+        $hasNote = !empty($this->tasklist[$dayCur]['note']);
+        $html .= '<a href="#" class="ts-se-btn" onclick="tsOpenStartEnd(\''.$key.'\'); return false;"'
+            .($hasNote ? ' title="'.dol_escape_htmltag($this->tasklist[$dayCur]['note']).'"' : '').'>';
+        $html .= '<span class="ts-se-label">'.(($startStr || $endStr) ? ($startStr ?: '?').'&ndash;'.($endStr ?: '?') : '').'</span>';
+        $html .= '<span class="ts-se-noteflag"'.($hasNote ? '' : ' style="display:none"').'>&#9998;</span></a>';
+        $html .= '</div>';
+        return $html;
+    }
+
     /**
     * function to generate the info  cell content for HTML Display
     *
@@ -936,9 +1008,9 @@ class TimesheetTask extends Task
                         ." onclick = 'tristate_Marks(this)' />\n";
                     break;
                 case 'Note':
-                    $html .= img_picto('Note', empty($this->note)?'filenew':'file',
-                         ' id="img_noteTask_'.$this->userId
-                        .'_'.$this->id.'" onClick = "openNote(\'noteTask_'.$this->userId.'_'.$this->id.'\');"');
+                    $html .= '<span class="'.(empty($this->note) ? 'far' : 'fas').' fa-sticky-note ts-note-icon" title="'
+                        .dol_escape_htmltag($langs->trans('Note')).'" style="cursor:pointer;" id="img_noteTask_'.$this->userId
+                        .'_'.$this->id.'" onClick = "openNote(\'noteTask_'.$this->userId.'_'.$this->id.'\');"></span>';
                     $html .= '<div class = "modal" id = "noteTask_'.$this->userId.'_'.$this->id.'" >';
                     $html .= '<div class = "modal-content">';
                     $html .= '<span class = "close " onclick = "closeNotes();">&times;</span>';
@@ -1275,11 +1347,14 @@ class TimesheetTask extends Task
         $_SESSION['timesheet'][$token]['updateError'] = 0;
         $_SESSION['timesheet'][$token]['timeSpendDeleted'] = 0;
         $_SESSION['timesheet'][$token]['timeSpendCreated'] = 0;
+        $_SESSION['timesheet'][$token]['timeSpendLocked'] = 0;
+        $_SESSION['timesheet'][$token]['timeSpanInvalid'] = 0;
         $_SESSION['timesheet'][$token]['ProgressUpdate'] = 0;
         if (is_array($timesheetPost))
             foreach ($timesheetPost as $dayKey => $dayData) {
                 $wkload = $dayData[0];
-                $daynote = array_key_exists(1,$dayData )?$dayData[1]:'';
+                // null = no note field was posted (e.g. locked/invoiced day): keep the stored note
+                $daynote = array_key_exists(1,$dayData )?$dayData[1]:null;
                 $duration = 0;
                 if (getConf('TIMESHEET_TIME_TYPE', 'hours') == "days") {
                     $duration = (float) $wkload * getConf('TIMESHEET_DAY_DURATION', 8) * 3600;
@@ -1287,11 +1362,16 @@ class TimesheetTask extends Task
                     $durationTab = date_parse($wkload);
                     $duration = $durationTab['minute'] * 60 + $durationTab['hour'] * 3600;
                 }
-                $lineresult = $this->saveTaskTime($Submitter, $duration, $daynote, $dayKey);
+                // start/end "HH:MM" from the popup; null = not posted (keep stored value), '' = cleared
+                $daystart = array_key_exists(2, $dayData) ? trim($dayData[2]) : null;
+                $dayend = array_key_exists(3, $dayData) ? trim($dayData[3]) : null;
+                $lineresult = $this->saveTaskTime($Submitter, $duration, $daynote, $dayKey, false, $daystart, $dayend);
                 $_SESSION['timesheet'][$token]['timeSpendModified'] += array_key_exists('timeSpendModified', $lineresult) ? $lineresult['timeSpendModified'] : 0;
                 $_SESSION['timesheet'][$token]['updateError'] += array_key_exists('updateError', $lineresult) ? $lineresult['updateError'] : 0;
                 $_SESSION['timesheet'][$token]['timeSpendDeleted'] += array_key_exists('timeSpendDeleted', $lineresult) ? $lineresult['timeSpendDeleted'] : 0;
                 $_SESSION['timesheet'][$token]['timeSpendCreated'] += array_key_exists('timeSpendCreated', $lineresult) ? $lineresult['timeSpendCreated'] : 0;
+                $_SESSION['timesheet'][$token]['timeSpendLocked'] += array_key_exists('timeSpendLocked', $lineresult) ? $lineresult['timeSpendLocked'] : 0;
+                $_SESSION['timesheet'][$token]['timeSpanInvalid'] += array_key_exists('timeSpanInvalid', $lineresult) ? $lineresult['timeSpanInvalid'] : 0;
             }
         $nbUpdate = ($_SESSION['timesheet'][$token]['timeSpendModified']
             + $_SESSION['timesheet'][$token]['timeSpendDeleted']
@@ -1327,13 +1407,21 @@ class TimesheetTask extends Task
      * @param string $daynote note to save
      * @param int $dayKey  day to update(start at 0 based on the get querry)
      * @param type $addmode to add the note and duration to existing one instead of replacing them
+     * @param string|null $daystart start time "HH:MM" ('' = clear, null = keep stored value)
+     * @param string|null $dayend   end time "HH:MM" ('' = clear, null = keep stored value)
      * @return array eventmesage array
      */
-    public function saveTaskTime($Submitter, $duration, $daynote, $dayKey, $addmode = false)
+    public function saveTaskTime($Submitter, $duration, $daynote, $dayKey, $addmode = false, $daystart = null, $dayend = null)
     {
         $item = $this->tasklist[$dayKey];
-        $resArray = ['timeSpendDeleted'=>0, 'timeSpendModified' => 0, 'timeSpendCreated'=>0, 'updateError'=> 0, ];
+        $resArray = ['timeSpendDeleted'=>0, 'timeSpendModified' => 0, 'timeSpendCreated'=>0, 'updateError'=> 0, 'timeSpanInvalid' => 0];
+        // start/end handling only when the popup fields were posted
+        $useSE = timesheetUseStartEnd($this->db) && ($daystart !== null || $dayend !== null);
         $daynote_old = array_key_exists('note', $item) ? $item['note']:'';
+        if ($daynote === null) {
+            $daynote = $daynote_old; // no note field posted (locked day): keep the stored note
+        }
+        $resArray['timeSpendLocked'] = 0;
 
         $is_today=date("Y-m-d") == date("Y-m-d",$item['date']);
         $this->timespent_fk_user = $this->userId;
@@ -1352,7 +1440,64 @@ class TimesheetTask extends Task
                  $this->timespent_date = $item['date']; // fix dolibarr 18
             }
         }
+        $forceNew = false;
+        $objts = null;
         if ($item['id']>0) {
+            // Load the stored record: Task::updateTimeSpent() writes fk_product, invoice_id and
+            // invoice_line_id back from the object, so they must not be left empty (would unlink invoices)
+            $sqlts = 'SELECT element_duration, note, fk_product, invoice_id, invoice_line_id'
+                .($useSE ? ', timesheet_start, timesheet_end' : '').' FROM '
+                .MAIN_DB_PREFIX.'element_time WHERE rowid = '.((int) $item['id']);
+            $rests = $this->db->query($sqlts);
+            $objts = $rests ? $this->db->fetch_object($rests) : null;
+            $this->timespent_fk_product = $objts ? $objts->fk_product : null;
+            $this->timespent_invoiceid = $objts ? $objts->invoice_id : null;
+            $this->timespent_invoicelineid = $objts ? $objts->invoice_line_id : null;
+        }
+        // Start / end of work (Beginn / Ende)
+        $seChanged = false;
+        $newStartTs = $newEndTs = null;
+        if ($useSE) {
+            // a timestamp inside the day (noon), robust against DST / timezone differences
+            $dayRef = (int) $item['date'] + (($item['id'] > 0) ? SECINDAY / 2 : SECINDAY / 4);
+            $oldStartTs = ($objts && !empty($objts->timesheet_start)) ? $this->db->jdate($objts->timesheet_start) : null;
+            $oldEndTs = ($objts && !empty($objts->timesheet_end)) ? $this->db->jdate($objts->timesheet_end) : null;
+            $newStartTs = ($daystart === null) ? $oldStartTs : timesheetTimeOfDay($daystart, $dayRef);
+            $newEndTs = ($dayend === null) ? $oldEndTs : timesheetTimeOfDay($dayend, $dayRef);
+            if ($newStartTs && $newEndTs && $newEndTs <= $newStartTs) {
+                $newEndTs += SECINDAY; // work over midnight
+            }
+            if ($newStartTs && $newEndTs) {
+                $span = $newEndTs - $newStartTs;
+                if ($duration == 0 && !$addmode) {
+                    $duration = $span; // only start/end entered: duration = span
+                }
+                if ($duration > $span) {
+                    // net duration can not be longer than start..end
+                    dol_syslog(__METHOD__." duration ".$duration." > start/end span ".$span.", refused", LOG_WARNING);
+                    $resArray['timeSpanInvalid']++;
+                    return $resArray;
+                }
+            }
+            $seChanged = ($newStartTs != $oldStartTs) || ($newEndTs != $oldEndTs);
+        }
+        if ($item['id']>0) {
+            // Invoiced time is locked (unless TIMESHEET_UNBLOCK_INVOICED): the UI shows it read-only,
+            // enforce it here too so invoiced time can not be changed or deleted afterwards
+            if ($objts && ($objts->invoice_id > 0 || $objts->invoice_line_id > 0) && !getConf('TIMESHEET_UNBLOCK_INVOICED')) {
+                if ($addmode && ($duration > 0 || !empty($daynote))) {
+                    // e.g. stopwatch adds time on an already invoiced day: book it as a new (not invoiced) entry
+                    $forceNew = true;
+                } else {
+                    if ((int) $duration != (int) $objts->element_duration || trim((string) $daynote) != trim((string) $objts->note) || $seChanged) {
+                        dol_syslog(__METHOD__." invoiced time spent id=".$item['id']." is locked, change refused", LOG_WARNING);
+                        $resArray['timeSpendLocked']++;
+                    }
+                    return $resArray;
+                }
+            }
+        }
+        if ($item['id']>0 && !$forceNew) {
             $this->timespent_id = $item['id'];
             $this->timespent_old_duration = $item['duration'];
             if ($addmode) {
@@ -1366,9 +1511,19 @@ class TimesheetTask extends Task
             }
 
 
-            if (($this->timespent_duration >0 && $this->timespent_old_duration!=$this->timespent_duration )|| $daynote_old!=$daynote && (!empty($daynote) || $this->timespent_duration >0)) {
+            if (($this->timespent_duration >0 && $this->timespent_old_duration!=$this->timespent_duration )|| $daynote_old!=$daynote && (!empty($daynote) || $this->timespent_duration >0)
+                || ($seChanged && $this->timespent_duration > 0)) {
                     dol_syslog(__METHOD__."  taskTimeUpdate", LOG_DEBUG);
+                    if ($useSE && $newStartTs) {
+                        // real start: Dolibarr core shows it in the time spent views too
+                        $this->timespent_withhour = '1';
+                        $this->timespent_datehour = $newStartTs;
+                        $this->timespent_date = $newStartTs;
+                    }
                     if ($this->updateTimeSpent($Submitter, 0) >= 0) {
+                        if ($useSE) {
+                            $this->saveStartEnd($item['id'], $newStartTs, $newEndTs);
+                        }
                         $resArray['timeSpendModified']++;
                     }else {
                         $resArray['updateError']++;
@@ -1387,6 +1542,11 @@ class TimesheetTask extends Task
         } elseif ($duration>0 || $daynote!='') {
             $this->timespent_note = $daynote;
             $this->timespent_duration = $duration;
+            $this->timespent_invoiceid = null;
+            $this->timespent_invoicelineid = null;
+            if (!$forceNew) {
+                $this->timespent_fk_product = null; // do not inherit the product loaded for another day
+            }
 
             if (property_exists($this, 'timespent_datehour') && $duration>0 ) {
                 $this->timespent_withhour = '1';
@@ -1401,8 +1561,17 @@ class TimesheetTask extends Task
             }
             
             
+            if ($useSE && $newStartTs && $duration > 0) {
+                // real start: Dolibarr core requires timespent_date == timespent_datehour to keep the hour
+                $this->timespent_withhour = '1';
+                $this->timespent_datehour = $newStartTs;
+                $this->timespent_date = $newStartTs;
+            }
             $newId = $this->addTimeSpent($Submitter, 0);
             if ($newId >= 0) {
+                if ($useSE && $newId > 0) {
+                    $this->saveStartEnd($newId, $newStartTs, $newEndTs);
+                }
 
                 $resArray['timeSpendCreated']++;
                 $this->tasklist[$dayKey]['id'] = $newId;
@@ -1417,8 +1586,33 @@ class TimesheetTask extends Task
         if(!array_key_exists('note', $this->tasklist[$dayKey]) || $this->tasklist[$dayKey]['note'] != $this->timespent_note){
             $this->tasklist[$dayKey]['note'] = $this->timespent_note;
         }
+        if ($useSE) {
+            $this->tasklist[$dayKey]['start'] = $newStartTs;
+            $this->tasklist[$dayKey]['end'] = $newEndTs;
+        }
 
         return $resArray;
+    }
+
+    /**
+     * Store start / end of work on a time spent record (module columns of llx_element_time)
+     *
+     * @param int      $rowid   element_time id
+     * @param int|null $startTs start timestamp or null
+     * @param int|null $endTs   end timestamp or null
+     * @return int <0 if KO
+     */
+    public function saveStartEnd($rowid, $startTs, $endTs)
+    {
+        $sql = 'UPDATE '.MAIN_DB_PREFIX.'element_time SET';
+        $sql .= ' timesheet_start = '.($startTs ? "'".$this->db->idate($startTs)."'" : 'NULL');
+        $sql .= ', timesheet_end = '.($endTs ? "'".$this->db->idate($endTs)."'" : 'NULL');
+        $sql .= ' WHERE rowid = '.((int) $rowid);
+        if (!$this->db->query($sql)) {
+            dol_syslog(__METHOD__.' '.$this->db->lasterror(), LOG_ERR);
+            return -1;
+        }
+        return 1;
     }
     /**
          *        function that will send email to

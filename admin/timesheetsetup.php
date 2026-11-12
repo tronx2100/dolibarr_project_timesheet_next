@@ -46,6 +46,7 @@ $hidezeros = getConf('TIMESHEET_HIDE_ZEROS');
 $headers = getConf('TIMESHEET_HEADERS');
 $hideref = getConf('TIMESHEET_HIDE_REF');
 $showTimespentNote = getConf('TIMESHEET_SHOW_TIMESPENT_NOTE');
+$showStartEnd = getConf('TIMESHEET_SHOW_STARTEND', 1);
 
 $adddocs = getConf('TIMESHEET_ADD_DOCS');
 
@@ -259,6 +260,8 @@ switch($action) {
         dolibarr_set_const($db, "TIMESHEET_INVOICE_SHOW_USER", $invoiceshowuser, 'int', 0, '', $conf->entity);
         $showTimespentNote = getpost('showTimespentNote', 'int');
         dolibarr_set_const($db, "TIMESHEET_SHOW_TIMESPENT_NOTE", $showTimespentNote, 'int', 0, '', $conf->entity);
+        $showStartEnd = getpost('showStartEnd', 'int');
+        dolibarr_set_const($db, "TIMESHEET_SHOW_STARTEND", $showStartEnd, 'int', 0, '', $conf->entity);
         $noteOnPDF = getpost('noteOnPDF', 'alpha');
         dolibarr_set_const($db, "TIMESHEET_PDF_NOTEISOTASK", $noteOnPDF, 'chaine', 0, '', $conf->entity);
         $pdfhidesignbox = getpost('pdfHideSignbox', 'alpha');
@@ -338,7 +341,7 @@ foreach ($headersT as $header) {
  *  VIEW
  *  */
 //permet d'afficher la structure dolibarr
-$morejs = array("/timesheet/core/js/timesheet.js?v2.0", "/timesheet/core/js/jscolor.js");
+$morejs = array("/timesheet/core/js/timesheet.js?".timesheetAssetVersion(), "/timesheet/core/js/jscolor.js");
 llxHeader("", $langs->trans("timesheetSetup"), '', '', '', '', $morejs, '', 0, 0);
 if ($action = "save")echo "<script>window.history.pushState('', '', '".explode('?', 
     $_SERVER['REQUEST_URI'], 2)[0]."');</script>";
@@ -460,6 +463,11 @@ echo  '<tr class="oddeven"><td align="left">'.$langs->trans("ShowTimespentNote")
 echo '</td><td align="left">'.$langs->trans("ShowTimespentNoteDesc").'</td>';
 echo  '<td align="left"><input type = "checkbox" name = "showTimespentNote" value="1" ';
 echo (($showTimespentNote == '1')?'checked':'')."></td></tr>";
+// start / end of work per day
+echo  '<tr class="oddeven"><td align="left">'.$langs->trans("ShowStartEnd");
+echo '</td><td align="left">'.$langs->trans("ShowStartEndDesc").'</td>';
+echo  '<td align="left"><input type = "checkbox" name = "showStartEnd" value="1" ';
+echo (($showStartEnd == '1')?'checked':'')."></td></tr>";
 echo "</table><br>";
 
 print load_fiche_titre( $langs->trans("OpenDays"), '', '' );

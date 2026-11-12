@@ -186,7 +186,7 @@ if (isset($_SESSION['Attendanceevent'][$token])) {
 * Put here all code to build page
 ****************************************************/
 $morejs = array("/timesheet/core/js/jsparameters.php", "/timesheet/core/js/timesheet.js?"
-    .getConf('TIMESHEET_VERSION'));
+    .timesheetAssetVersion());
 llxHeader('', $langs->trans('AttendanceAdmin'), '', '', '', '', $morejs);
 print "<div> <!-- module body-->";
 $form = new Form($db);

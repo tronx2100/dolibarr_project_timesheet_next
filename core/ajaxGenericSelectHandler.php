@@ -19,7 +19,7 @@ include 'lib/includeMain.lib.php';
  global $conf, $langs, $db;
  top_httphead();
 //get the token, exit if
-$token = GETPOST('token', 'apha');
+$token = GETPOST('token', 'alpha');
 if (!isset($_SESSION['ajaxQuerry'][$token])) {
     ob_end_flush();
     exit();

@@ -575,21 +575,23 @@ function formatTime($duration, $hoursperdays = -1)
         if (array_key_exists('NoActiveEvent', $arraymessage) && $arraymessage['NoActiveEvent'])$messages[] = array('type' => 'warning', 'text' => 'NoActiveEvent', 'param'=>'');
         if (array_key_exists('EventNotActive', $arraymessage) && $arraymessage['EventNotActive'])$messages[] = array('type' => 'error', 'text' => 'EventNotActive', 'param'=>'');
         if (array_key_exists('DbError', $arraymessage) && $arraymessage['DbError'])$messages[] = array('type' => 'error', 'text' => 'DbError', 'param'=>'');
+        if (array_key_exists('timeSpendLocked', $arraymessage) && $arraymessage['timeSpendLocked'])$messages[] = array('type' => 'warning', 'text' => 'NumberOfTimeSpendLockedInvoiced', 'param'=>$arraymessage['timeSpendLocked']);
+        if (array_key_exists('timeSpanInvalid', $arraymessage) && $arraymessage['timeSpanInvalid'])$messages[] = array('type' => 'error', 'text' => 'NumberOfTimeSpanInvalid', 'param'=>$arraymessage['timeSpanInvalid']);
 
         $nbr = 0;
         foreach ($messages as $key => $message) {
             if ($message['param']>0) {
-                if ($returnstring == false)setEventMessage($langs->transnoentitiesnoconv($message['text']).$message['param'], $message['type']);
+                if ($returnstring == false)setEventMessage($langs->transnoentitiesnoconv($message['text']).$message['param'], str_replace(array('warning', 'error'), array('warnings', 'errors'), $message['type']));
                 else $messages[$key]['text']=$langs->trans($message['text']);
                 $nbr++;
             } else{
-                if ($returnstring == false)setEventMessage($langs->transnoentitiesnoconv($message['text']), $message['type']);
+                if ($returnstring == false)setEventMessage($langs->transnoentitiesnoconv($message['text']), str_replace(array('warning', 'error'), array('warnings', 'errors'), $message['type']));
                 else $messages[$key]['text']=$langs->trans($message['text']);
                 $nbr++;
             }
         }
         if ($nbr == 0) setEventMessage($langs->transnoentitiesnoconv(
-                    $default['text']), $default['type']);
+                    $default['text']), 'warnings'); // Dolibarr style is "warnings"
         if ($returnstring == true)return json_encode($messages);
     }
 
@@ -691,4 +693,56 @@ function timesheet_report_prepare_head( $mode, $item_id , $hidetab=0) {
 	$head[$h][2] = 'showtoday';
 
 	return $head;
+}
+
+/**
+ * Start/end time per day (Beginn/Ende) is enabled and the DB columns exist
+ * (columns are added by sql/llx_element_time.key.sql when the module is (re)activated)
+ *
+ * @param DoliDB $db database handler
+ * @return bool
+ */
+function timesheetUseStartEnd($db)
+{
+    static $hasColumns = null;
+    if (!getConf('TIMESHEET_SHOW_STARTEND', 1)) {
+        return false;
+    }
+    if ($hasColumns === null) {
+        $resql = $db->query('SELECT timesheet_start, timesheet_end FROM '.MAIN_DB_PREFIX.'element_time WHERE 1 = 0');
+        $hasColumns = ($resql ? true : false);
+        if (!$hasColumns) {
+            dol_syslog(__FUNCTION__.' columns timesheet_start/timesheet_end missing, reactivate the timesheet module', LOG_WARNING);
+        }
+    }
+    return $hasColumns;
+}
+
+/**
+ * Convert a "HH:MM" time of a given day into a timestamp (same timezone handling as Dolibarr core time entry)
+ *
+ * @param string $hhmm time "HH:MM"
+ * @param int    $dayTs any timestamp within the day
+ * @return int|null timestamp or null if empty/invalid
+ */
+function timesheetTimeOfDay($hhmm, $dayTs)
+{
+    if (!is_string($hhmm) || !preg_match('/^([01]?[0-9]|2[0-3]):([0-5][0-9])$/', trim($hhmm), $reg)) {
+        return null;
+    }
+    $ymd = explode('-', dol_print_date($dayTs, '%Y-%m-%d'));
+    return dol_mktime((int) $reg[1], (int) $reg[2], 0, (int) $ymd[1], (int) $ymd[2], (int) $ymd[0]);
+}
+
+/**
+ * Version string for the module js/css urls: changes whenever the file changes, so browsers
+ * (and phones) load the new file after an update instead of an old cached one
+ *
+ * @param string $file file relative to the module directory
+ * @return string
+ */
+function timesheetAssetVersion($file = 'core/js/timesheet.js')
+{
+    $mtime = @filemtime(dirname(__DIR__, 2).'/'.$file);
+    return $mtime ? (string) $mtime : (string) getConf('TIMESHEET_VERSION');
 }

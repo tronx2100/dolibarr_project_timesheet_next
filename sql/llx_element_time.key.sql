@@ -21,7 +21,14 @@ ALTER TABLE llx_element_time ADD COLUMN status   integer default 1; -- enum('DRA
 ALTER TABLE llx_element_time ADD COLUMN fk_task_time_approval   integer;
 
 
-ALTER TABLE llx_element_time ADD CONSTRAINT fk_ptt_ptta_id  FOREIGN KEY (fk_task_time_approval) REFERENCES llx_project_task_time_approval(rowid) ON DELETE SET NULL ON UPDATE CASCADE;
+-- Disabled: llx_project_task_time_approval.rowid is BIGINT UNSIGNED (serial) but fk_task_time_approval is INTEGER, so the key
+-- can never be created on MySQL/MariaDB. A dangling id is harmless (only used as filter), so we do not alter the core table.
+-- ALTER TABLE llx_element_time ADD CONSTRAINT fk_ptt_ptta_id  FOREIGN KEY (fk_task_time_approval) REFERENCES llx_project_task_time_approval(rowid) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --/*llx_projet_task_tim remove enum 2.3.3.5 --> 2.4*/
 ALTER TABLE llx_element_time MODIFY COLUMN status   integer default 1;
+
+-- Real start / end time of the work (MiLoG / ArbZG: Beginn, Ende, Dauer), entered in the timesheet popup.
+-- Kept separate from element_datehour, so old entries (with a generated hour) are not mistaken for real times.
+ALTER TABLE llx_element_time ADD COLUMN timesheet_start datetime DEFAULT NULL;
+ALTER TABLE llx_element_time ADD COLUMN timesheet_end datetime DEFAULT NULL;

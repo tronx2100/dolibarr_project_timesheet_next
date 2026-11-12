@@ -458,7 +458,7 @@ function getNomUrl($type, $htmlcontent = '1', $id = 0, $ref = '')
         $object->fetch($id);
         $link = $object->getNomUrl();
     } else {
-        $link = "ERROR: type:${$type} not supported or class not loaded";
+        $link = "ERROR: type:{$type} not supported or class not loaded";
     }
     return $link;
 }

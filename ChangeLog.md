@@ -1,4 +1,14 @@
 # dolibarr_project_timesheet changelog
+4.6.8
+ - Dolibarr 24 compatibility: menu conditions without $conf->global (top menu was hidden)
+ - Dolibarr 24: note icons (FontAwesome) and closeNotes(); grid stayed empty with day notes enabled
+ - start / end / break per day in a popup (MiLoG / ArbZG), stored in element_time.timesheet_start/_end, in export and PDF
+ - invoiced time is locked server side; saving no longer unlinks invoices or wipes notes of locked days
+ - llx_attendance_event was not created on Dolibarr >= 22 (comment in SQL), foreign key fixes
+ - fixes: project report tab right, export invoiceable column / customer name, PDF without logo,
+   holiday/public holiday session restore, PHP 8.2+ deprecations, warning/error messages not shown
+ - js/css urls with version so browsers load updated files
+
 4.6.7
  - support chrono on PSQL
  - better chrono error management

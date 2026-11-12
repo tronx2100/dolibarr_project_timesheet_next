@@ -25,7 +25,7 @@ include 'core/lib/includeMain.lib.php';
 require_once 'core/lib/timesheet.lib.php';
 require_once 'class/TimesheetTask.class.php';
 
-$jsonIn = $_POST['json'];
+$jsonIn = isset($_POST['json']) ? $_POST['json'] : '';
 
     $action = GETPOST('action', 'alpha');
     switch($action) {

@@ -626,7 +626,7 @@ $langs->load('timesheet@timesheet');
 * Put here all code to build page
 ****************************************************/
 $morejs = array("/timesheet/core/js/jsparameters.php", 
-    "/timesheet/core/js/timesheet.js?".getConf('TIMESHEET_VERSION'));
+    "/timesheet/core/js/timesheet.js?".timesheetAssetVersion());
 llxHeader('', $langs->trans('TimesheetToInvoice'), '', '', '', '', $morejs);
 print "<div> <!-- module body-->";
 $project = new Project($db);

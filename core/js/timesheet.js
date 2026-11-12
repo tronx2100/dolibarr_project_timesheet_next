@@ -634,9 +634,17 @@ function closeNotes(){
     for(var i=0;i<modals.length;i+=1){
         var modalbox = modals[i];
         modalbox.style.display = "none";
-        var icon = (modalbox.firstChild.lastChild.value.length>0)?"file":"filenew";
+        var noteField = modalbox.querySelector('textarea');
+        var hasNote = noteField && noteField.value.length > 0;
         var imgnote = document.getElementById("img_"+modalbox.id);
-        imgnote.src = imgnote.src.replace(patt,"$'"+icon+".png");
+        if (!imgnote) continue;
+        if (imgnote.tagName === 'IMG') {
+            imgnote.src = imgnote.src.replace(patt,"$'"+(hasNote ? "file" : "filenew")+".png");
+        } else {
+            // Dolibarr >= 24 icons are FontAwesome spans
+            imgnote.classList.remove('far', 'fas');
+            imgnote.classList.add(hasNote ? 'fas' : 'far');
+        }
     };
 }
 
@@ -752,3 +760,164 @@ function updateProgressElement(element){
 
 
 
+
+/* ------------------------------------------------------------------
+ * Start / end of work popup (Beginn / Ende / Pause / Dauer)
+ * Cell fields: task[u][t][d][0] duration, [1] note, [2] start "HH:MM", [3] end "HH:MM"
+ * ------------------------------------------------------------------ */
+var tsSeKey = null;
+
+function tsSeField(key, idx) {
+    var p = key.split('_');
+    var l = document.getElementsByName('task[' + p[0] + '][' + p[1] + '][' + p[2] + '][' + idx + ']');
+    return l.length ? l[0] : null;
+}
+// "8:30", "8", "8.5", "8,5" -> minutes (null if invalid/empty); days mode: value in days
+function tsSeToMin(str) {
+    if (str === null || str === undefined) return null;
+    str = String(str).trim();
+    if (str === '') return null;
+    if (typeof time_type !== 'undefined' && time_type === 'days') {
+        var d = parseFloat(str.replace(',', '.'));
+        return isNaN(d) ? null : Math.round(d * day_hours * 60);
+    }
+    var m = str.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
+    if (m) return parseInt(m[1], 10) * 60 + (m[2] ? parseInt(m[2], 10) : 0);
+    var f = parseFloat(str.replace(',', '.'));
+    return isNaN(f) ? null : Math.round(f * 60);
+}
+// minutes -> value for the duration cell
+function tsSeFromMin(min) {
+    if (typeof time_type !== 'undefined' && time_type === 'days') {
+        return String(Math.round(min / 60 / day_hours * 1000) / 1000);
+    }
+    return pad(Math.floor(min / 60)) + ':' + pad(min % 60);
+}
+function tsSeHHMM(min) { return Math.floor(min / 60) + ':' + pad(min % 60); }
+// minutes between start and end ("HH:MM"), over midnight allowed; null if one is missing
+function tsSeSpan() {
+    var s = document.getElementById('tsSeStart').value, e = document.getElementById('tsSeEnd').value;
+    if (!s || !e) return null;
+    var sm = parseInt(s.substr(0, 2), 10) * 60 + parseInt(s.substr(3, 2), 10);
+    var em = parseInt(e.substr(0, 2), 10) * 60 + parseInt(e.substr(3, 2), 10);
+    var span = em - sm;
+    if (span <= 0) span += 24 * 60;
+    return span;
+}
+function tsSeValidate() {
+    var span = tsSeSpan(), dur = tsSeToMin(document.getElementById('tsSeDuration').value);
+    var msg = '', ok = true;
+    if (span !== null && dur !== null && dur > span) { msg = ts_se_msg_span; ok = false; }
+    else if (span !== null) {
+        var s = document.getElementById('tsSeStart').value, e = document.getElementById('tsSeEnd').value;
+        if (e <= s) msg = ts_se_msg_order;
+    }
+    var box = document.getElementById('tsSeMsg');
+    box.textContent = msg;
+    box.className = 'ts-se-msg' + (ok ? (msg ? ' ts-se-info' : '') : ' ts-se-error');
+    document.getElementById('tsSeApply').disabled = !ok;
+    return ok;
+}
+// start/end/break changed: duration = span - break
+function tsSeRecalc() {
+    var span = tsSeSpan();
+    if (span !== null) {
+        var brk = tsSeToMin(document.getElementById('tsSeBreak').value) || 0;
+        document.getElementById('tsSeDuration').value = tsSeFromMin(Math.max(span - brk, 0));
+    }
+    tsSeValidate();
+}
+// duration typed: show the resulting break
+function tsSeDurationChanged() {
+    var span = tsSeSpan(), dur = tsSeToMin(document.getElementById('tsSeDuration').value);
+    if (span !== null && dur !== null && dur <= span) {
+        document.getElementById('tsSeBreak').value = (span - dur) > 0 ? tsSeHHMM(span - dur) : '';
+    }
+    tsSeValidate();
+}
+function tsOpenStartEnd(key) {
+    var box = document.getElementById('tsse_' + key);
+    if (!box) return;
+    tsSeKey = key;
+    var open = box.getAttribute('data-open') == '1';
+    var dur = tsSeField(key, 0), st = tsSeField(key, 2), en = tsSeField(key, 3), note = tsSeField(key, 1);
+    document.getElementById('tsSeTitle').textContent = box.getAttribute('data-title');
+    document.getElementById('tsSeStart').value = st ? st.value : '';
+    document.getElementById('tsSeEnd').value = en ? en.value : '';
+    document.getElementById('tsSeDuration').value = dur ? dur.value : '';
+    var span = tsSeSpan(), durMin = tsSeToMin(dur ? dur.value : '');
+    document.getElementById('tsSeBreak').value = (span !== null && durMin !== null && span > durMin) ? tsSeHHMM(span - durMin) : '';
+    var noteEl = document.getElementById('tsSeNote');
+    var showNote = (note !== null);
+    noteEl.style.display = showNote ? '' : 'none';
+    document.querySelector('#tsSeModal .ts-se-notelabel').style.display = showNote ? '' : 'none';
+    noteEl.value = showNote ? note.value : '';
+    var inputs = ['tsSeStart', 'tsSeEnd', 'tsSeBreak', 'tsSeDuration', 'tsSeNote'];
+    for (var i = 0; i < inputs.length; i++) document.getElementById(inputs[i]).disabled = !open;
+    document.getElementById('tsSeApply').style.display = open ? '' : 'none';
+    document.querySelector('#tsSeModal .ts-se-clear').style.display = open ? '' : 'none';
+    document.getElementById('tsSeModal').style.display = 'block';
+    tsSeValidate();
+    if (open && !window.matchMedia('(pointer: coarse)').matches) document.getElementById('tsSeStart').focus();
+}
+function tsCloseStartEnd() {
+    document.getElementById('tsSeModal').style.display = 'none';
+    tsSeKey = null;
+}
+function tsSeClear() {
+    document.getElementById('tsSeStart').value = '';
+    document.getElementById('tsSeEnd').value = '';
+    document.getElementById('tsSeBreak').value = '';
+    tsSeValidate();
+}
+function tsApplyStartEnd() {
+    if (!tsSeKey || !tsSeValidate()) return;
+    var key = tsSeKey, box = document.getElementById('tsse_' + key);
+    var dur = tsSeField(key, 0), st = tsSeField(key, 2), en = tsSeField(key, 3), note = tsSeField(key, 1);
+    var s = document.getElementById('tsSeStart').value, e = document.getElementById('tsSeEnd').value;
+    if (st) st.value = s;
+    if (en) en.value = e;
+    if (note) note.value = document.getElementById('tsSeNote').value;
+    var durMin = tsSeToMin(document.getElementById('tsSeDuration').value);
+    if (dur) {
+        dur.value = (durMin === null) ? '' : tsSeFromMin(durMin);
+        validateTime(dur, box.getAttribute('data-col')); // normalise + update totals
+    }
+    var label = box.querySelector('.ts-se-label');
+    if (label) label.innerHTML = (s || e) ? (s || '?') + '&ndash;' + (e || '?') : '';
+    if (note) {
+        var flag = box.querySelector('.ts-se-noteflag'), btn = box.querySelector('.ts-se-btn');
+        if (flag) flag.style.display = note.value ? '' : 'none';
+        if (btn) btn.title = note.value;
+    }
+    tsCloseStartEnd();
+}
+// Escape / click on the dark background closes the start/end popup and the note popups
+document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape') return;
+    if (tsSeKey) tsCloseStartEnd();
+    else if (typeof closeNotes === 'function') closeNotes();
+});
+document.addEventListener('click', function (ev) {
+    if (!ev.target) return;
+    if (ev.target.id === 'tsSeModal') tsCloseStartEnd();
+    else if (ev.target.classList && ev.target.classList.contains('modal') && typeof closeNotes === 'function') closeNotes();
+});
+document.addEventListener('DOMContentLoaded', function () {
+    var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    var boxes = document.querySelectorAll('.ts-se');
+    for (var i = 0; i < boxes.length; i++) {
+        (function (box) {
+            var key = box.getAttribute('data-key'), dur = tsSeField(key, 0);
+            if (!dur || box.getAttribute('data-open') != '1') return;
+            // phone / tablet: tapping the hours opens the popup (no tiny keyboard field)
+            if (coarse) {
+                dur.setAttribute('readonly', 'readonly');
+                dur.addEventListener('click', function () { tsOpenStartEnd(key); });
+            } else {
+                // desktop: keep typing the hours inline, double click opens the popup
+                dur.addEventListener('dblclick', function () { tsOpenStartEnd(key); });
+            }
+        })(boxes[i]);
+    }
+});

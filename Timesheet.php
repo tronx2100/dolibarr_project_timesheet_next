@@ -225,7 +225,7 @@ exit();
 }
 $morejs = array("/timesheet/core/js/jsparameters.php", 
     "/timesheet/core/js/timesheet.js?"
-    .getConf('TIMESHEET_VERSION'));
+    .timesheetAssetVersion());
 llxHeader('', $langs->trans('Timesheet'), '', '', '', '', $morejs);
 echo '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">';
 //calculate the week days
@@ -258,7 +258,7 @@ $Form .= $task_timesheet->getHTMLFormHeader();
      }
 $Form .= $task_timesheet->getHTML();
 //simulualate a click on of of the tabs
-$Form .= '<script>document.getElementById("defaultOpen").click()</script>';
+$Form .= '<script>var _eldo = document.getElementById("defaultOpen"); if (_eldo) _eldo.click();</script>';
 //Javascript
 //$Form .= ' <script type = "text/javascript" src = "core/js/timesheet.js"></script>'."\n";
 $Form .= '<script type = "text/javascript">'."\n\t";
@@ -397,6 +397,28 @@ $Form .= 'updateAll('.getConf('TIMESHEET_HIDE_ZEROS').');closeNotes();';
 $Form .= "\n\t".'</script>'."\n";
 // $Form .= '</div>';//TimesheetPage
 print $Form;
+// popup to enter start / end of work per day (outside of the form: its fields are not posted)
+if (timesheetUseStartEnd($db)) {
+    print '<div class="ts-se-modal" id="tsSeModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="tsSeTitle">';
+    print '<div class="ts-se-content">';
+    print '<span class="ts-se-close" onclick="tsCloseStartEnd()">&times;</span>';
+    print '<div class="ts-se-title" id="tsSeTitle"></div>';
+    print '<div class="ts-se-grid">';
+    print '<label for="tsSeStart">'.$langs->trans('TimesheetStart').'</label><input type="time" id="tsSeStart" step="300" onchange="tsSeRecalc()">';
+    print '<label for="tsSeEnd">'.$langs->trans('TimesheetEnd').'</label><input type="time" id="tsSeEnd" step="300" onchange="tsSeRecalc()">';
+    print '<label for="tsSeBreak">'.$langs->trans('TimesheetBreak').'</label><input type="text" id="tsSeBreak" inputmode="numeric" placeholder="0:30" onchange="tsSeRecalc()">';
+    print '<label for="tsSeDuration">'.$langs->trans('TimesheetDurationNet').'</label><input type="text" id="tsSeDuration" inputmode="numeric" placeholder="8:00" onchange="tsSeDurationChanged()">';
+    print '<label for="tsSeNote" class="ts-se-notelabel">'.$langs->trans('Note').'</label><textarea id="tsSeNote" rows="2" class="ts-se-note"></textarea>';
+    print '</div>';
+    print '<div class="ts-se-msg" id="tsSeMsg"></div>';
+    print '<div class="ts-se-buttons">';
+    print '<button type="button" class="button ts-se-clear" onclick="tsSeClear()">'.$langs->trans('TimesheetClearTimes').'</button>';
+    print '<button type="button" class="button" onclick="tsCloseStartEnd()">'.$langs->trans('Cancel').'</button>';
+    print '<button type="button" class="button ts-se-apply" id="tsSeApply" onclick="tsApplyStartEnd()">'.$langs->trans('TimesheetApply').'</button>';
+    print '</div></div></div>';
+    print '<script>var ts_se_msg_span = '.json_encode($langs->transnoentitiesnoconv('TimesheetDurationTooLong')).';'
+        .' var ts_se_msg_order = '.json_encode($langs->transnoentitiesnoconv('TimesheetOvernight')).';</script>';
+}
 //add attachement
 if (getConf('TIMESHEET_ADD_DOCS') == 1) {
         $object = $task_timesheet;

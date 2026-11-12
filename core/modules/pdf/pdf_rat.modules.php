@@ -39,6 +39,9 @@ class pdf_rat extends ModelPDFTimesheetReport
     public $posxworker;
     public $posxdate;
     public $posxduration;
+    public $posxstart;
+    public $posxend;
+    public $showStartEnd = false;
 
     public function __construct($db)
     {
@@ -73,6 +76,12 @@ class pdf_rat extends ModelPDFTimesheetReport
             $this->posxlabel-=20;
             $this->posxdate-=20;
             $this->posxduration-=20;
+        }
+        // Start / end of work (Beginn / Ende) columns between task and duration
+        $this->showStartEnd = timesheetUseStartEnd($db);
+        if ($this->showStartEnd) {
+            $this->posxstart = $this->posxduration - 30;
+            $this->posxend = $this->posxduration - 15;
         }
     }
 
@@ -427,9 +436,16 @@ $pdf->writeHTMLCell(
         $pdf->SetXY($this->posxdate, $curY);
         $pdf->MultiCell($this->posxlabel-$this->posxdate, 0, $date, 0, 'L');
         $nexY = max($nexY, $pdf->GetY());
+        $labelEnd = $this->showStartEnd ? $this->posxstart : $this->posxduration;
         $pdf->SetXY($this->posxlabel, $curY);
-        $pdf->MultiCell($this->posxduration-$this->posxlabel, 3, dol_string_nohtmltag($libelleline), 0, 'L');
+        $pdf->MultiCell($labelEnd-$this->posxlabel, 3, dol_string_nohtmltag($libelleline), 0, 'L');
         $nexY = max($nexY, $pdf->GetY());
+        if ($this->showStartEnd) {
+            $pdf->SetXY($this->posxstart, $curY);
+            $pdf->MultiCell($this->posxend-$this->posxstart, 3, isset($line['timeStart']) ? $line['timeStart'] : '', 0, 'C');
+            $pdf->SetXY($this->posxend, $curY);
+            $pdf->MultiCell($this->posxduration-$this->posxend, 3, isset($line['timeEnd']) ? $line['timeEnd'] : '', 0, 'C');
+        }
         $pdf->SetXY($this->posxduration, $curY);
         $pdf->MultiCell($this->page_largeur-$this->marge_droite-$this->posxduration, 3, $duration, 0, 'R');
         $nexY = max($nexY, $pdf->GetY());
@@ -468,7 +484,13 @@ $pdf->writeHTMLCell(
                 default:
                     $libelleline = $outputlangs->transnoentities("Task");
             }
-            $pdf->MultiCell($this->posxduration-$this->posxlabel, 3, $libelleline, 0, 'L');
+            $pdf->MultiCell(($this->showStartEnd ? $this->posxstart : $this->posxduration)-$this->posxlabel, 3, $libelleline, 0, 'L');
+            if ($this->showStartEnd) {
+                $pdf->SetXY($this->posxstart, $tab_top+1);
+                $pdf->MultiCell($this->posxend-$this->posxstart, 3, $outputlangs->transnoentities('TimesheetStart'), 0, 'C');
+                $pdf->SetXY($this->posxend, $tab_top+1);
+                $pdf->MultiCell($this->posxduration-$this->posxend, 3, $outputlangs->transnoentities('TimesheetEnd'), 0, 'C');
+            }
             $pdf->SetXY($this->posxduration, $tab_top+1);
             if (getConf('TIMESHEET_INVOICE_TIMETYPE','days') == "hours") {
                 $pdf->MultiCell($this->page_largeur - $this->marge_droite - $this->posxduration, 3, 'h:m', 0, 'R');
@@ -514,7 +536,7 @@ $pdf->writeHTMLCell(
             $pdf->MultiCell(100, 4, $outputlangs->transnoentities($this->emetteur->name), 0, 'L');
             if ($showaddress == true){
                 $pdf->MultiCell(100, $pdf->GetY() + 1, $outputlangs->transnoentities($mysoc->address), 0, 'L');
-                $pdf->MultiCell(100, $$pdf->GetY() + 1, $outputlangs->transnoentities($mysoc->zip.' - '.$mysoc->town), 0, 'L');
+                $pdf->MultiCell(100, $pdf->GetY() + 1, $outputlangs->transnoentities($mysoc->zip.' - '.$mysoc->town), 0, 'L');
             }
             $posy_l =  $pdf->GetY() + 1 ;
         }

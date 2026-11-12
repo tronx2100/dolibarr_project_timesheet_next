@@ -142,7 +142,8 @@ display:none;
 
 
 [name^="noteTaskApproval"] {
-width:97vw ;
+width:100% ; /* was 97vw: on desktop the left menu comes on top -> field and save buttons went off screen */
+box-sizing: border-box;
 max-width:99% ;
 min-height:100px;
 
@@ -157,6 +158,10 @@ table[id^="timesheetTable_"] tr:last-child {
 #timesheetForm > div.tsheetcontainer {
   position: relative;
   overflow-x: auto;
+  /* desktop: Dolibarr content area is a table cell that grows with its content, so the month grid
+     made the whole page ~2000px wide (buttons off screen). contain: the grid scrolls in its own box */
+  contain: inline-size;
+  width: 100%;
 }
 
 table[id^="timesheetTable_"] {
@@ -239,3 +244,40 @@ margin-right: 10px !important;
 
 
 
+
+/* ---- Start / end of work (Beginn / Ende) ---- */
+.ts-se { display: block; line-height: 1; margin-top: 2px; white-space: nowrap; }
+.ts-se-btn { text-decoration: none; color: inherit; }
+.ts-se-label { font-size: 0.75em; color: #444; }
+.ts-se-noteflag { font-size: 0.8em; color: #666; margin-left: 2px; }
+td > .ts-se-label { display: block; }
+
+.ts-se-modal {
+    display: none; position: fixed; z-index: 100000; left: 0; top: 0; width: 100%; height: 100%;
+    overflow: auto; background-color: rgba(0, 0, 0, 0.4);
+}
+.ts-se-content {
+    background-color: #fefefe; margin: 10vh auto; padding: 14px 16px; border: 1px solid #888;
+    border-radius: 6px; width: 380px; max-width: calc(100% - 32px); box-sizing: border-box;
+}
+.ts-se-close { color: #888; float: right; font-size: 28px; font-weight: bold; line-height: 20px; cursor: pointer; }
+.ts-se-title { font-weight: bold; margin: 0 30px 12px 0; }
+.ts-se-grid { display: grid; grid-template-columns: max-content 1fr; gap: 8px 12px; align-items: center; }
+.ts-se-grid input, .ts-se-grid textarea { width: 100%; box-sizing: border-box; padding: 6px; }
+.ts-se-msg { min-height: 1.2em; margin: 8px 0 4px; font-size: 0.9em; }
+.ts-se-msg.ts-se-error { color: #b00; font-weight: bold; }
+.ts-se-msg.ts-se-info { color: #555; }
+.ts-se-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.ts-se-buttons .button { cursor: pointer; }
+#tsSeModal .ts-se-buttons button.ts-se-apply { background: #2e6b3a; background-image: none; border: 1px solid #2e6b3a; color: #fff; font-weight: bold; text-shadow: none; }
+#tsSeModal .ts-se-buttons button.ts-se-apply:hover { background: #24562e; background-image: none; }
+#tsSeModal .ts-se-buttons button.ts-se-apply[disabled] { background: #bbb; background-image: none; border-color: #bbb; color: #fff; cursor: not-allowed; }
+
+@media (max-width: 768px), (pointer: coarse) {
+    .ts-se-content { margin: 4vh auto; width: 100%; }
+    .ts-se-grid { grid-template-columns: 1fr; gap: 4px; }
+    .ts-se-grid label { margin-top: 6px; font-weight: bold; }
+    .ts-se-grid input, .ts-se-grid textarea { font-size: 16px; min-height: 44px; }
+    .ts-se-buttons .button { flex: 1 1 auto; min-height: 44px; font-size: 16px; }
+    .ts-se-label { font-size: 0.8em; }
+}
